@@ -73,7 +73,7 @@ def process_batch(zip_path, batch):
 # Main function to process files in batches
 def main():
     zip_path = 'zbbig2.zip'  # Path to the ZIP file
-    batch_size = 5  # Set the desired batch size
+    batch_size = 15  # Set the desired batch size
 
     # Set Git configuration for user identity
     set_git_config()
