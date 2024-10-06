@@ -1,74 +1,84 @@
 import subprocess
 import os
 import threading
-from queue import Queue
 
 # Function to set Git user configuration
 def set_git_config():
     try:
+        # Set user email and name for Git
         subprocess.run(["git", "config", "--global", "user.email", "you@example.com"], check=True)
         subprocess.run(["git", "config", "--global", "user.name", "Your Name"], check=True)
         print("[Success] Git user configuration set.")
     except subprocess.CalledProcessError as e:
         print(f"[Error] Failed to set Git configuration: {e}")
 
-# Function to extract a single file using 7z
-def extract_file(zip_path, file, file_queue):
+# Function to extract a single file using 7z and check its actual output location
+def extract_file(zip_path, file):
     try:
+        # Extracting file with directory structure
         result = subprocess.run(['7z', 'x', zip_path, file, '-o./extracted'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        # Extract the output from stdout to verify where the file was extracted
         output = result.stdout
         print(output)  # Optionally print the extraction output for debugging
-
+        
+        # Check the extracted file's path based on the output
         extracted_file_path = f"./extracted/{file}"
         if os.path.isfile(extracted_file_path):
             print(f"[Success] Extracted: {extracted_file_path}")
-            file_queue.put(extracted_file_path)  # Add the extracted file to the queue
+            return extracted_file_path
         else:
             print(f"[Error] Extracted, but file not found in expected path: {extracted_file_path}")
+            return None
     except subprocess.CalledProcessError as e:
         print(f"[Error] Failed to extract {file}: {e}")
+        return None
 
-# Function to commit and push a batch of files
-def git_commit_and_push_batch(file_queue, batch_size):
-    batch = []
+# Function to commit and push a batch of files together
+def git_commit_and_push(files):
     try:
-        while True:
-            # Collect files into a batch
-            while not file_queue.empty() and len(batch) < batch_size:
-                file = file_queue.get()
-                if os.path.isfile(file):
-                    subprocess.run(["git", "add", file], check=True)
-                    batch.append(file)
-            
-            if batch:
-                # Commit and push the batch
-                subprocess.run(["git", "commit", "-m", f"Batch add of {len(batch)} files"], check=True)
-                subprocess.run(["git", "push", "origin", "main"], check=True)
-
-                # Remove the files after pushing
-                for file in batch:
-                    os.remove(file)
-                    print(f"[Success] Pushed and deleted: {file}")
-
-                # Clear the batch after processing
-                batch.clear()
+        # Stage all files in the batch
+        for file in files:
+            if os.path.isfile(file):
+                subprocess.run(["git", "add", file], check=True)
             else:
-                break
+                print(f"[Error] File not found for git add: {file}")
+        
+        # Commit all staged files together
+        subprocess.run(["git", "commit", "-m", "Batch add of extracted files"], check=True)
+        # Push all committed changes
+        subprocess.run(["git", "push", "origin", "main"], check=True)
+
+        # Clean up the files after push
+        for file in files:
+            os.remove(file)
+            print(f"[Success] Pushed and deleted: {file}")
     except subprocess.CalledProcessError as e:
-        print(f"[Error] Git operation failed: {e}")
+        print(f"[Error] Git operation failed for batch: {e}")
     except Exception as e:
         print(f"[Error] Failed to delete files: {e}")
 
-# Main function to extract and push files in batches
+# Process each batch by extracting files and pushing them to the repository
+def process_batch(zip_path, batch):
+    extracted_files = []
+    for file in batch:
+        extracted_file = extract_file(zip_path, file)
+        if extracted_file:
+            extracted_files.append(extracted_file)
+    
+    # Once all files in the batch are extracted, commit and push them together
+    if extracted_files:
+        git_commit_and_push(extracted_files)
+
+# Main function to process files in batches
 def main():
     zip_path = 'zbbig2.zip'  # Path to the ZIP file
-    batch_size = 10  # Set the desired batch size
-    file_queue = Queue()  # Queue to store extracted files
+    batch_size = 5  # Set the desired batch size
 
     # Set Git configuration for user identity
     set_git_config()
 
-    # Create a directory for extracted files if it doesn't exist
+    # Create a directory for extracted files if not exists
     if not os.path.exists('./extracted'):
         os.makedirs('./extracted')
 
@@ -76,16 +86,10 @@ def main():
     with open('file_list.txt', 'r') as f:
         files = f.read().splitlines()
 
-    # Start the Git push process in a separate thread
-    push_thread = threading.Thread(target=git_commit_and_push_batch, args=(file_queue, batch_size))
-    push_thread.start()
-
-    # Extract each file in a separate thread
-    for file in files:
-        threading.Thread(target=extract_file, args=(zip_path, file, file_queue)).start()
-
-    # Wait for the push thread to finish
-    push_thread.join()
+    # Split files into batches and process each batch
+    for i in range(0, len(files), batch_size):
+        batch = files[i:i + batch_size]
+        process_batch(zip_path, batch)
 
 if __name__ == "__main__":
     main()
