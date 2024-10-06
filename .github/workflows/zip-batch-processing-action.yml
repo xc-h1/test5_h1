@@ -1,0 +1,40 @@
+name: Zip Batch Processing Workflow
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  unzip-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Install 7zip and Python dependencies
+      - name: Setup environment
+        run: |
+          sudo apt-get install -y p7zip-full python3
+
+      # Step 3: List files in the ZIP and store in file_list.txt
+      - name: List files in ZIP
+        id: list_files
+        run: |
+          7z l zbbig2.zip | awk '/assets\// {print $NF}' > file_list.txt
+          echo "Successfully listed files to file_list.txt."
+          cat file_list.txt
+
+      # Step 4: Run the Python batch processor
+      - name: Run Python batch processor
+        run: |
+          python3 zip_batch_processor.py
+
+      # Step 5: Clean up
+      - name: Clean up
+        run: |
+          rm -f file_list.txt
+          rm -rf ./extracted
