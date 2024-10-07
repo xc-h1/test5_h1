@@ -12,8 +12,8 @@ jobs:
 
     steps:
       # Step 1: Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      # - name: Checkout repository
+      #   uses: actions/checkout@v3
 
       # Step 2: Install 7zip and Python dependencies
       - name: Setup environment
