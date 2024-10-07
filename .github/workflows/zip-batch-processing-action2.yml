@@ -11,9 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
-      - name: Checkout repository
+      # Step 1: Checkout only the ZIP file and Python script
+      - name: Checkout only necessary files
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 1  # Limits history fetching to the latest commit
+          sparse-checkout: |
+            zbbig2.zip
+            zip_batch_processor.py
 
       # Step 2: Install 7zip and Python dependencies
       - name: Setup environment
@@ -31,10 +36,9 @@ jobs:
       # Step 4: Run the Python batch processor
       - name: Run Python batch processor
         run: |
-          python3 zip_batch_processor2.py
+          python3 zip_batch_processor.py
 
       # Step 5: Clean up
       - name: Clean up
         run: |
           rm -f file_list.txt
-          rm -rf ./extracted2
