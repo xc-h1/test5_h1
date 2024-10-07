@@ -11,14 +11,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout only the ZIP file and Python script
+      # Step 1: Checkout the repository but limit to specific files
       - name: Checkout only necessary files
         uses: actions/checkout@v3
         with:
           fetch-depth: 1  # Limits history fetching to the latest commit
+          # Ensure only the needed files are fetched
           sparse-checkout: |
             zbbig2.zip
             zip_batch_processor.py
+          # Skip the unnecessary directories (including 'extracted')
+          skip-checks: true  # This avoids checking paths that aren't in the sparse checkout
 
       # Step 2: Install 7zip and Python dependencies
       - name: Setup environment
